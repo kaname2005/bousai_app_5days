@@ -1,20 +1,115 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>検索結果</h2>
+{% block title %}{{ '全施設一覧' if is_all_shelters else '避難所検索結果' }} | 防災アプリ{% endblock %}
 
-{% if results %}
-  <ul>
+{% block content %}
+<section class="shelter-results-page" aria-labelledby="resultsHeading">
+  <div class="results-heading-row">
+    <div>
+      <p class="results-eyebrow">避難所</p>
+      <h2 id="resultsHeading">{{ '全施設一覧' if is_all_shelters else '検索結果' }}</h2>
+    </div>
+    <p class="results-count"><strong>{{ results|length }}</strong>件</p>
+  </div>
+
+  {% include '_shelter_search_form.html' %}
+
+  {% if results %}
+  <ul class="shelter-results-list">
     {% for shelter in results %}
-    <li>{{ shelter.name }}</li>
+    <li>
+      <article class="shelter-result">
+        <h3>{{ shelter.get('name', '名称未登録') }}</h3>
+        {% if shelter.get('district') or shelter.get('address') %}
+        <p>
+          {% if shelter.get('district') %}{{ shelter.get('district') }}{% endif %}
+          {% if shelter.get('district') and shelter.get('address') %}<span aria-hidden="true">・</span>{% endif %}
+          {% if shelter.get('address') %}{{ shelter.get('address') }}{% endif %}
+        </p>
+        {% endif %}
+        <ul class="shelter-capabilities" aria-label="避難所の対応状況">
+          {% if filters.hazard %}
+          <li class="is-confirmed">{{ hazard_types[filters.hazard] }}の安全確認済み</li>
+          {% elif shelter.get('safety_confirmed') %}
+          <li>安全確認済み:
+            {% for hazard in shelter.get('safe_for') or [] %}
+            {{ hazard_types.get(hazard, hazard) }}{% if not loop.last %}・{% endif %}
+            {% else %}該当なし{% endfor %}
+          </li>
+          {% else %}
+          <li class="is-unknown">災害別の安全情報 未確認</li>
+          {% endif %}
+          <li class="{{ 'is-confirmed' if shelter.get('pets_allowed') is sameas true else 'is-unknown' if shelter.get('pets_allowed') is none else 'is-unavailable' }}">
+            ペット {{ '受入可' if shelter.get('pets_allowed') is sameas true else '受入不可' if shelter.get('pets_allowed') is sameas false else '未確認' }}
+          </li>
+          <li class="{{ 'is-confirmed' if shelter.get('barrier_free') is sameas true else 'is-unknown' if shelter.get('barrier_free') is none else 'is-unavailable' }}">
+            バリアフリー {{ '対応あり' if shelter.get('barrier_free') is sameas true else '対応なし' if shelter.get('barrier_free') is sameas false else '未確認' }}
+          </li>
+          <li class="{{ 'is-confirmed' if shelter.get('wheelchair_accessible') is sameas true else 'is-unknown' if shelter.get('wheelchair_accessible') is none else 'is-unavailable' }}">
+            車いす {{ '対応あり' if shelter.get('wheelchair_accessible') is sameas true else '対応なし' if shelter.get('wheelchair_accessible') is sameas false else '未確認' }}
+          </li>
+          {% if shelter.get('distance_km') is not none %}
+          <li class="is-distance">現在地から約{{ shelter.get('distance_km') }} km</li>
+          {% endif %}
+        </ul>
+      </article>
+    </li>
     {% endfor %}
   </ul>
-{% else %}
-  <p>該当する避難所が見つかりませんでした</p>
-{% endif %}
+  {% else %}
+  <div class="no-results" role="status">
+    <h3>該当する避難所が見つかりません</h3>
+    {% if location_error %}
+    <p>{{ location_error }}</p>
+    {% elif filters.nearby %}
+    <p>検索範囲内で条件を満たす施設がありません。所在地座標が未登録の施設は現在地検索に表示できません。</p>
+    {% elif filters.hazard or filters.pets_only or filters.barrier_free_only or filters.wheelchair_only %}
+    <p>確認済み情報が条件に一致する避難所はありません。未確認施設は条件付き検索に含めていません。</p>
+    {% else %}
+    <p>キーワードや条件を変えて検索してください。</p>
+    {% endif %}
+    <a href="{{ url_for('shelter_search') }}">検索条件をクリア</a>
+  </div>
+  {% endif %}
 
-<p>
-  <a href="/shelter_search">検索画面に戻る</a> |
-  <a href="/">トップページへ戻る</a>
-</p>
+  <div class="results-actions">
+    <a class="home-button" href="{{ url_for('index') }}">ホームに戻る</a>
+    <a class="search-back-button" href="{{ url_for('shelter_search') }}">条件検索に戻る</a>
+  </div>
+</section>
+
+<style>
+  .shelter-results-page { max-width: 760px; margin: 10px auto 0; }
+  .results-heading-row { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  .results-eyebrow { margin: 0 0 4px; color: #607186; font-size: .9rem; font-weight: 700; }
+  .results-heading-row h2 { margin: 0; color: var(--ink); font-size: 1.7rem; }
+  .results-count { margin: 0 0 2px; color: #607186; white-space: nowrap; }
+  .results-count strong { color: var(--blue); font-size: 1.6rem; }
+  .no-results a:focus-visible, .results-actions a:focus-visible { outline: 3px solid #a9c5ef; outline-offset: 2px; }
+  .shelter-results-list { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+  .shelter-results-list li { border-bottom: 1px solid var(--line); }
+  .shelter-result { padding: 17px 4px; }
+  .shelter-result h3 { margin: 0; color: var(--ink); font-size: 1.08rem; }
+  .shelter-result p { margin: 4px 0 0; color: #607186; font-size: .92rem; }
+  .shelter-capabilities { display: flex; flex-wrap: wrap; gap: 6px; margin: 11px 0 0; padding: 0; list-style: none; }
+  .shelter-capabilities li { padding: 3px 8px; border-radius: 4px; background: #eef2f6; color: #506176; font-size: .82rem; }
+  .shelter-capabilities .is-confirmed { background: #e8f5ec; color: #236b3e; }
+  .shelter-capabilities .is-unknown { background: #fff4df; color: #795710; }
+  .shelter-capabilities .is-unavailable { background: #f8ecea; color: #873e32; }
+  .shelter-capabilities .is-distance { background: #eaf0fa; color: var(--blue); font-weight: 700; }
+  .no-results { padding: 26px 20px; border-radius: 6px; background: #f1f5f9; text-align: center; }
+  .no-results h3 { margin: 0; color: var(--ink); font-size: 1.12rem; }
+  .no-results p { margin: 8px 0 14px; color: #607186; }
+  .results-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+  .results-actions a { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; padding: 0 18px; border: 1px solid var(--blue); border-radius: 6px; color: var(--blue); font-weight: 700; text-decoration: none; }
+  .results-actions .home-button { background: var(--blue); color: #fff; }
+  .results-actions .home-button:hover { background: var(--blue-deep); }
+  .results-actions .search-back-button:hover { background: #edf3fb; }
+
+  @media (max-width: 600px) {
+    .results-heading-row h2 { font-size: 1.45rem; }
+    .results-actions { display: grid; }
+    .results-actions a { min-height: 54px; }
+  }
+</style>
 {% endblock %}

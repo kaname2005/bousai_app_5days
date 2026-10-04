@@ -1,0 +1,149 @@
+<form class="evacuation-search-form" action="{{ url_for('search_results') }}" method="post" data-shelter-search-form>
+  <div class="evacuation-search-grid">
+    <div class="evacuation-field keyword-field">
+      <label for="shelterKeyword">避難所名・地区・住所</label>
+      <input type="search" id="shelterKeyword" name="q" value="{{ filters.q }}" placeholder="例：御所見小学校" autocomplete="off">
+      <small class="search-input-example">入力例：御所見小学校</small>
+    </div>
+
+    <div class="evacuation-field hazard-field">
+      <label for="shelterHazard">災害の種類</label>
+      <select id="shelterHazard" name="hazard">
+        <option value="">指定なし</option>
+        {% for code, label in hazard_types.items() %}
+        <option value="{{ code }}" {% if filters.hazard == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="evacuation-field district-field">
+      <label for="shelterDistrict">地区</label>
+      <select id="shelterDistrict" name="district">
+        <option value="">すべての地区</option>
+        {% for district in districts %}
+        <option value="{{ district }}" {% if filters.district == district %}selected{% endif %}>{{ district }}</option>
+        {% else %}
+        <option value="" disabled>地区情報未登録</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <fieldset class="evacuation-needs">
+    <legend>必要な対応</legend>
+    <label><input type="checkbox" name="pets_only" value="1" {% if filters.pets_only %}checked{% endif %}> ペット同伴可</label>
+    <label><input type="checkbox" name="barrier_free_only" value="1" {% if filters.barrier_free_only %}checked{% endif %}> バリアフリー</label>
+    <label><input type="checkbox" name="wheelchair_only" value="1" {% if filters.wheelchair_only %}checked{% endif %}> 車いす対応</label>
+  </fieldset>
+
+  <div class="evacuation-location">
+    <label for="searchRadius">現在地から探す範囲</label>
+    <select id="searchRadius" name="radius_km">
+      {% for radius in radius_options %}
+      <option value="{{ radius }}" {% if filters.radius_km == radius %}selected{% endif %}>{{ radius }} km</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="nearby" value="{{ '1' if filters.nearby else '' }}">
+    <input type="hidden" name="latitude" value="{{ filters.latitude }}">
+    <input type="hidden" name="longitude" value="{{ filters.longitude }}">
+    <button class="location-search-button" type="button" data-use-location>現在地から検索</button>
+    {% if filters.nearby %}
+    <button class="location-clear-button" type="button" data-clear-location>現在地条件を解除</button>
+    {% endif %}
+    <p class="location-search-status" role="status" aria-live="polite">{{ location_error }}</p>
+  </div>
+
+  <p class="safety-filter-note">条件を指定した場合、確認済み情報が一致する避難所だけを表示します。</p>
+  <button class="evacuation-submit" type="submit">条件で検索</button>
+</form>
+
+<style>
+  .evacuation-search-form { display: grid; gap: 18px; }
+  .evacuation-search-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
+  .evacuation-field { display: grid; gap: 7px; }
+  .evacuation-field label, .evacuation-location > label { color: var(--ink); font-size: .92rem; font-weight: 700; }
+  .evacuation-field input, .evacuation-field select, .evacuation-location select {
+    width: 100%;
+    min-height: 58px;
+    padding: 0 12px;
+    border: 1px solid #b9c6d5;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+  }
+  .search-input-example { color: #607186; font-size: .85rem; }
+  .evacuation-needs { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px; }
+  .evacuation-needs legend { padding: 0 5px; color: var(--ink); font-weight: 700; }
+  .evacuation-needs label { display: flex; align-items: center; gap: 9px; min-height: 32px; color: var(--ink); }
+  .evacuation-needs input { width: 19px; height: 19px; margin: 0; accent-color: var(--blue); }
+  .evacuation-location { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: end; gap: 9px; }
+  .evacuation-location > label { grid-column: 1 / -1; }
+  .location-search-button, .location-clear-button, .evacuation-submit {
+    min-height: 50px;
+    padding: 0 16px;
+    border: 1px solid var(--blue);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--blue);
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+  }
+  .location-search-button:hover, .location-clear-button:hover { background: #edf3fb; }
+  .location-search-status { grid-column: 1 / -1; min-height: 1.4em; margin: 0; color: #943b2a; font-size: .9rem; }
+  .safety-filter-note { margin: -10px 0 0; color: #607186; font-size: .88rem; }
+  .evacuation-submit { width: 100%; min-height: 68px; border-color: var(--blue); background: var(--blue); color: #fff; font-size: 1.15rem; }
+  .evacuation-submit:hover { background: var(--blue-deep); }
+  .evacuation-search-form :focus-visible { outline: 3px solid #a9c5ef; outline-offset: 2px; }
+
+  @media (max-width: 680px) {
+    .evacuation-search-grid { grid-template-columns: 1fr; }
+    .evacuation-needs { display: grid; gap: 5px; }
+    .evacuation-location { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .evacuation-location select, .location-search-button, .location-clear-button { width: 100%; }
+    .location-search-button, .location-clear-button { min-height: 54px; }
+    .location-search-status { grid-column: 1 / -1; }
+    .evacuation-submit { min-height: 64px; font-size: 1.12rem; }
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('[data-shelter-search-form]');
+  if (!form) return;
+
+  const locationStatus = form.querySelector('.location-search-status');
+  const locationButton = form.querySelector('[data-use-location]');
+  const clearLocationButton = form.querySelector('[data-clear-location]');
+  const nearbyInput = form.elements.nearby;
+  const latitudeInput = form.elements.latitude;
+  const longitudeInput = form.elements.longitude;
+
+  locationButton.addEventListener('click', function() {
+    if (!navigator.geolocation) {
+      locationStatus.textContent = 'この端末では現在地を取得できません。施設名や住所で検索してください。';
+      return;
+    }
+
+    locationStatus.textContent = '現在地を確認しています...';
+    navigator.geolocation.getCurrentPosition(function(position) {
+      latitudeInput.value = position.coords.latitude;
+      longitudeInput.value = position.coords.longitude;
+      nearbyInput.value = '1';
+      form.requestSubmit();
+    }, function() {
+      locationStatus.textContent = '現在地を取得できませんでした。位置情報の利用を許可するか、施設名や住所で検索してください。';
+    }, {enableHighAccuracy: true, timeout: 10000, maximumAge: 60000});
+  });
+
+  if (clearLocationButton) {
+    clearLocationButton.addEventListener('click', function() {
+      nearbyInput.value = '';
+      latitudeInput.value = '';
+      longitudeInput.value = '';
+      form.requestSubmit();
+    });
+  }
+});
+</script>

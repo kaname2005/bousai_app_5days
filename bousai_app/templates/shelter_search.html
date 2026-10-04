@@ -1,8 +1,59 @@
 {% extends "base.html" %}
 
-{% block content %}
-<h2>避難所検索</h2>
-<p>登録されている避難所を確認できます。</p>
+{% block title %}避難所検索 | 防災アプリ{% endblock %}
 
-<p><a href="/all_shelters">全施設一覧</a></p>
+{% block content %}
+<section class="shelter-search-page" aria-labelledby="searchHeading">
+	<header class="search-heading">
+		<p class="search-eyebrow">避難所</p>
+		<h2 id="searchHeading">避難所検索</h2>
+	</header>
+
+	{% include '_shelter_search_form.html' %}
+
+	<div class="search-quick-access">
+		<p class="registered-count"><strong>{{ total }}</strong><span>施設</span></p>
+		<a class="all-shelters-button" href="{{ url_for('all_shelters') }}">全施設一覧</a>
+	</div>
+</section>
+
+<style>
+	.shelter-search-page { max-width: 760px; margin: 18px auto 0; }
+	.search-heading { margin-bottom: 22px; }
+	.search-eyebrow { margin: 0 0 4px; color: #607186; font-size: .9rem; font-weight: 700; }
+	.search-heading h2 { margin: 0; color: var(--ink); font-size: 1.8rem; }
+	.search-quick-access {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin-top: 24px;
+		padding: 17px 0;
+		border-top: 1px solid var(--line);
+		border-bottom: 1px solid var(--line);
+	}
+	.registered-count { display: flex; align-items: baseline; gap: 7px; margin: 0; color: #607186; }
+	.registered-count strong { color: var(--ink); font-size: 1.2rem; }
+	.all-shelters-button {
+		display: inline-flex;
+		min-height: 48px;
+		align-items: center;
+		justify-content: center;
+		padding: 0 20px;
+		border-radius: 6px;
+		background: var(--blue);
+		color: #fff;
+		font-weight: 700;
+		text-decoration: none;
+	}
+	.all-shelters-button:hover { background: var(--blue-deep); }
+	.all-shelters-button:focus-visible { outline: 3px solid #a9c5ef; outline-offset: 3px; }
+
+	@media (max-width: 600px) {
+		.shelter-search-page { margin-top: 8px; }
+		.search-heading h2 { font-size: 1.5rem; }
+		.search-quick-access { align-items: stretch; flex-direction: column; gap: 10px; }
+		.all-shelters-button { width: 100%; min-height: 54px; }
+	}
+</style>
 {% endblock %}

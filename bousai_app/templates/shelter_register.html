@@ -1,23 +1,158 @@
 {% extends "base.html" %}
 
+{% block title %}避難所登録 | 防災アプリ{% endblock %}
+
 {% block content %}
-<h2>避難所登録</h2>
-<p>新しい避難所情報を登録します。</p>
+{% set selected_hazards = form_data.getlist('safe_for') if form_data else (editing_shelter.get('safe_for') or []) %}
+{% set selected_safety = form_data.get('safety_confirmed') == 'yes' if form_data else editing_shelter.get('safety_confirmed') %}
+{% set selected_pets = form_data.get('pets_allowed') if form_data else ('yes' if editing_shelter.get('pets_allowed') is sameas true else 'no' if editing_shelter.get('pets_allowed') is sameas false else '') %}
+{% set selected_barrier_free = form_data.get('barrier_free') if form_data else ('yes' if editing_shelter.get('barrier_free') is sameas true else 'no' if editing_shelter.get('barrier_free') is sameas false else '') %}
+{% set selected_wheelchair = form_data.get('wheelchair_accessible') if form_data else ('yes' if editing_shelter.get('wheelchair_accessible') is sameas true else 'no' if editing_shelter.get('wheelchair_accessible') is sameas false else '') %}
+<section class="shelter-register-page" aria-labelledby="registerHeading">
+  <h2 id="registerHeading">{{ '避難所情報の更新' if editing_shelter else '避難所登録' }}</h2>
+  {% if success or error %}
+  <p class="register-message {{ 'is-success' if success else 'is-error' }}" role="status">{{ message }}</p>
+  {% endif %}
 
-<!-- 成功・エラーメッセージ表示 -->
-{% if success %}
-  <p>{{ message }}</p>
-{% endif %}
+  {% if shelters %}
+  <form class="existing-shelter-select" method="get">
+    <label for="editShelter">登録済み避難所</label>
+    <select id="editShelter" name="edit_id">
+      <option value="">新規登録</option>
+      {% for shelter in shelters %}
+      <option value="{{ shelter.get('id') }}" {% if editing_shelter.get('id') == shelter.get('id') %}selected{% endif %}>
+        {{ shelter.get('name', '名称未登録') }}（#{{ shelter.get('id') }}）
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit">情報を読み込む</button>
+  </form>
+  {% endif %}
 
-{% if error %}
-  <p>{{ message }}</p>
-{% endif %}
+  <form class="shelter-register-form" method="post">
+    <input type="hidden" name="edit_id" value="{{ editing_shelter.get('id', '') }}">
+    <div class="register-field">
+      <label for="name">避難所名 <span>必須</span></label>
+      <input type="text" id="name" name="name" value="{{ form_data.get('name', editing_shelter.get('name', '')) }}" required>
+    </div>
 
-<form method="POST">
-  <p>
-    <label for="name">避難所名（必須）</label><br>
-    <input type="text" id="name" name="name">
-  </p>
-  <p><button type="submit">登録</button></p>
-</form>
+    <div class="register-two-columns">
+      <div class="register-field">
+        <label for="district">地区</label>
+        <input type="text" id="district" name="district" value="{{ form_data.get('district', editing_shelter.get('district', '')) }}">
+      </div>
+      <div class="register-field">
+        <label for="address">住所</label>
+        <input type="text" id="address" name="address" value="{{ form_data.get('address', editing_shelter.get('address', '')) }}" autocomplete="street-address">
+      </div>
+    </div>
+
+    <fieldset class="register-fieldset">
+      <legend>災害別の安全性</legend>
+      <label class="register-check">
+        <input type="checkbox" name="safety_confirmed" value="yes" {% if selected_safety %}checked{% endif %}>
+        <span>ハザード情報を確認済み</span>
+      </label>
+      <p class="register-note">確認済みの災害だけ選択してください。未確認の施設は災害別検索に表示されません。</p>
+      <div class="register-options">
+        {% for code, label in hazard_types.items() %}
+        <label class="register-check">
+          <input type="checkbox" name="safe_for" value="{{ code }}" {% if code in selected_hazards %}checked{% endif %}>
+          <span>{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="register-three-columns">
+      <div class="register-field">
+        <label for="petsAllowed">ペットの受入</label>
+        <select id="petsAllowed" name="pets_allowed">
+          <option value="" {% if selected_pets == '' %}selected{% endif %}>未確認</option>
+          <option value="yes" {% if selected_pets == 'yes' %}selected{% endif %}>受入可</option>
+          <option value="no" {% if selected_pets == 'no' %}selected{% endif %}>受入不可</option>
+        </select>
+      </div>
+      <div class="register-field">
+        <label for="barrierFree">バリアフリー</label>
+        <select id="barrierFree" name="barrier_free">
+          <option value="" {% if selected_barrier_free == '' %}selected{% endif %}>未確認</option>
+          <option value="yes" {% if selected_barrier_free == 'yes' %}selected{% endif %}>対応あり</option>
+          <option value="no" {% if selected_barrier_free == 'no' %}selected{% endif %}>対応なし</option>
+        </select>
+      </div>
+      <div class="register-field">
+        <label for="wheelchairAccessible">車いす対応</label>
+        <select id="wheelchairAccessible" name="wheelchair_accessible">
+          <option value="" {% if selected_wheelchair == '' %}selected{% endif %}>未確認</option>
+          <option value="yes" {% if selected_wheelchair == 'yes' %}selected{% endif %}>対応あり</option>
+          <option value="no" {% if selected_wheelchair == 'no' %}selected{% endif %}>対応なし</option>
+        </select>
+      </div>
+    </div>
+
+    <fieldset class="register-fieldset">
+      <legend>地図検索用の座標</legend>
+      <div class="register-two-columns">
+        <div class="register-field">
+          <label for="latitude">緯度</label>
+          <input type="number" id="latitude" name="latitude" value="{{ form_data.get('latitude', editing_shelter.get('latitude') if editing_shelter.get('latitude') is not none else '') }}" min="-90" max="90" step="any" inputmode="decimal">
+        </div>
+        <div class="register-field">
+          <label for="longitude">経度</label>
+          <input type="number" id="longitude" name="longitude" value="{{ form_data.get('longitude', editing_shelter.get('longitude') if editing_shelter.get('longitude') is not none else '') }}" min="-180" max="180" step="any" inputmode="decimal">
+        </div>
+      </div>
+    </fieldset>
+
+    <button class="register-submit" type="submit">{{ '更新' if editing_shelter else '登録' }}</button>
+  </form>
+</section>
+
+<style>
+  .shelter-register-page { max-width: 760px; margin: 8px auto 0; }
+  .shelter-register-page h2 { margin: 0 0 20px; color: var(--ink); }
+  .existing-shelter-select { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .existing-shelter-select label { grid-column: 1 / -1; color: var(--ink); font-weight: 700; }
+  .existing-shelter-select select { min-height: 46px; padding: 8px 12px; border: 1px solid #b9c6d5; border-radius: 6px; background: #fff; color: var(--ink); font: inherit; }
+  .existing-shelter-select button { min-height: 46px; padding: 0 16px; border: 1px solid var(--blue); border-radius: 6px; background: #fff; color: var(--blue); cursor: pointer; font: inherit; font-weight: 700; }
+  .shelter-register-form { display: grid; gap: 20px; }
+  .register-field { display: grid; gap: 7px; }
+  .register-field > label, .register-fieldset legend { color: var(--ink); font-weight: 700; }
+  .register-field > label span { color: #a3402b; font-size: .82rem; }
+  .register-field input, .register-field select {
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 12px;
+    border: 1px solid #b9c6d5;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+    font: inherit;
+  }
+  .register-two-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .register-three-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .register-fieldset { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 6px; }
+  .register-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .register-check { display: flex; align-items: center; gap: 9px; min-height: 36px; color: var(--ink); }
+  .register-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--blue); }
+  .register-note { margin: 0; color: #607186; font-size: .9rem; }
+  .register-submit { min-height: 52px; border: 0; border-radius: 6px; background: var(--blue); color: #fff; cursor: pointer; font: inherit; font-weight: 700; }
+  .register-submit:hover { background: var(--blue-deep); }
+  .register-message { padding: 12px 14px; border-radius: 6px; }
+  .register-message.is-success { background: #eaf6ee; color: #236b3e; }
+  .register-message.is-error { background: #fbefed; color: #943b2a; }
+  .existing-shelter-select select:focus-visible, .existing-shelter-select button:focus-visible, .register-field input:focus-visible, .register-field select:focus-visible, .register-check input:focus-visible, .register-submit:focus-visible { outline: 3px solid #a9c5ef; outline-offset: 2px; }
+
+  @media (max-width: 600px) {
+    .register-two-columns { grid-template-columns: 1fr; }
+    .register-three-columns { grid-template-columns: 1fr; }
+    .register-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .register-fieldset { padding: 13px; }
+    .register-submit { min-height: 58px; }
+    .existing-shelter-select { grid-template-columns: 1fr; }
+    .existing-shelter-select label { grid-column: 1; }
+    .existing-shelter-select button { min-height: 54px; }
+  }
+</style>
 {% endblock %}
